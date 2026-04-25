@@ -1,0 +1,18 @@
+(node:68669) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Listening on 5001
+{"severity":"INFO","message":"Fetching data for ^NSEI with interval 1m"}
+Please consider completing the survey at https://bit.ly/yahoo-finance-api-feedback if you haven't already; for more info see https://github.com/gadicc/node-yahoo-finance2/issues/764#issuecomment-2056623851.
+Fetching crumb and cookies from https://finance.yahoo.com/quote/AAPL...
+{"severity":"INFO","message":"Fetching data for ^INDIAVIX with interval 1m"}
+We expected a redirect to guce.yahoo.com, but got https://finance.yahoo.com/quote/AAPL/
+We'll try to continue anyway - you can safely ignore this if the request succeeds
+Success. Cookie expires on Sun Apr 25 2027 15:26:49 GMT+0000 (Coordinated Universal Time)
+fetch https://query1.finance.yahoo.com/v1/test/getcrumb
+New crumb: LoXTQE/f7gw
+{"severity":"ERROR","message":"Error fetching data for ^INDIAVIX: FetchError: invalid json response body at https://query2.finance.yahoo.com/v7/finance/quote?symbols=%5EINDIAVIX&crumb=LoXTQE%2Ff7gw reason: Unexpected token 'T', \"Too Many Requests\r\n\" is not valid JSON\n    at /app/functions/node_modules/node-fetch/lib/index.js:273:32\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {\n  type: 'invalid-json'\n}"}
+{"severity":"ERROR","message":"Error fetching data for ^NSEI: FetchError: invalid json response body at https://query2.finance.yahoo.com/v7/finance/quote?symbols=%5ENSEI&crumb=LoXTQE%2Ff7gw reason: Unexpected token 'T', \"Too Many Requests\r\n\" is not valid JSON\n    at /app/functions/node_modules/node-fetch/lib/index.js:273:32\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {\n  type: 'invalid-json'\n}"}
+{"severity":"INFO","message":"Fetching data for ^NSEI with interval 1m"}
+{"severity":"INFO","message":"Fetching data for ^INDIAVIX with interval 1m"}
+{"severity":"ERROR","message":"Error fetching data for ^NSEI: FetchError: invalid json response body at https://query2.finance.yahoo.com/v7/finance/quote?symbols=%5ENSEI&crumb=LoXTQE%2Ff7gw reason: Unexpected token 'T', \"Too Many Requests\r\n\" is not valid JSON\n    at /app/functions/node_modules/node-fetch/lib/index.js:273:32\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {\n  type: 'invalid-json'\n}"}
+{"severity":"ERROR","message":"Error fetching data for ^INDIAVIX: FetchError: invalid json response body at https://query2.finance.yahoo.com/v7/finance/quote?symbols=%5EINDIAVIX&crumb=LoXTQE%2Ff7gw reason: Unexpected token 'T', \"Too Many Requests\r\n\" is not valid JSON\n    at /app/functions/node_modules/node-fetch/lib/index.js:273:32\n    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {\n  type: 'invalid-json'\n}"}

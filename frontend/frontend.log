@@ -1,0 +1,32 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 577ms
+
+○ Compiling / ...
+ GET / 200 in 5.7s (next.js: 5.3s, application-code: 322ms)
+[browser] Error fetching market data: TypeError: Failed to fetch
+    at fetchData (src/hooks/useMarketData.ts:26:11)
+    at useMarketData.useEffect (src/hooks/useMarketData.ts:50:5)
+  24 |       try {
+  25 |         const [niftyRes, vixRes] = await Promise.all([
+> 26 |           fetch(`${API_URL}?ticker=%5ENSEI&interval=1m`),
+     |           ^
+  27 |           fetch(`${API_URL}?ticker=%5EINDIAVIX&interval=1m`)
+  28 |         ]);
+  29 | (src/hooks/useMarketData.ts:43:17)
+ GET / 200 in 68ms (next.js: 7ms, application-code: 61ms)
+[browser] Error fetching market data: Error: Rate limit exceeded from Yahoo Finance.
+    at fetchData (src/hooks/useMarketData.ts:31:17)
+  29 |
+  30 |         if (niftyRes.status === 429 || vixRes.status === 429) {
+> 31 |           throw new Error("Rate limit exceeded from Yahoo Finance.");
+     |                 ^
+  32 |         }
+  33 |
+  34 |         if (!niftyRes.ok) throw new Error(`Nifty fetch failed: ${niftyRes.status}`); (src/hooks/useMarketData.ts:43:17)
+ GET / 200 in 55ms (next.js: 5ms, application-code: 50ms)
