@@ -3,6 +3,14 @@ const logger = require("firebase-functions/logger");
 const cors = require("cors")({ origin: true });
 const yahooFinance = require('yahoo-finance2').default;
 
+function isYahooRateLimitError(error) {
+  const message = error?.message || "";
+  return (
+    message.includes("invalid json") &&
+    message.includes("Too Many Requests")
+  );
+}
+
 exports.getMarketData = onRequest(async (req, res) => {
   cors(req, res, async () => {
     const ticker = req.query.ticker;
@@ -25,7 +33,7 @@ exports.getMarketData = onRequest(async (req, res) => {
       } catch (chartErr) {
          logger.warn(`Could not fetch chart for ${ticker}: ${chartErr.message}`);
          // If "Too Many Requests" or invalid JSON, capture it
-         if (chartErr.message && chartErr.message.includes("invalid json") && chartErr.message.includes("Too Many Requests")) {
+         if (isYahooRateLimitError(chartErr)) {
             return res.status(429).json({ error: "Rate limit exceeded (Too Many Requests from Yahoo Finance)" });
          }
       }
@@ -38,7 +46,7 @@ exports.getMarketData = onRequest(async (req, res) => {
 
     } catch (error) {
       logger.error(`Error fetching data for ${ticker}:`, error);
-      if (error.message && error.message.includes("invalid json") && error.message.includes("Too Many Requests")) {
+      if (isYahooRateLimitError(error)) {
          return res.status(429).json({ error: "Rate limit exceeded (Too Many Requests from Yahoo Finance)" });
       }
       res.status(500).json({ error: "Failed to fetch market data", details: error.message });
