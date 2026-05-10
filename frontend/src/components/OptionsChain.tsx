@@ -1,4 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { MarketData } from '../hooks/useMarketData';
 
 interface OptionsChainProps {
@@ -40,12 +49,9 @@ type ClosedTrade = Position & {
   reason: 'Closed' | 'Expired';
 };
 
-type CandlePoint = {
+type ChartPoint = {
   tick: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+  price: number;
 };
 
 const INITIAL_CASH = 100000;
@@ -129,69 +135,6 @@ function formatSignedCurrency(value: number) {
   return `${sign}${formatCurrency(Math.abs(value))}`;
 }
 
-function CandlestickChart({ candles }: { candles: CandlePoint[] }) {
-  const width = 760;
-  const height = 280;
-  const padding = { top: 18, right: 20, bottom: 24, left: 54 };
-  const values = candles.flatMap((candle) => [candle.high, candle.low]);
-  const min = values.length ? Math.min(...values) : 0;
-  const max = values.length ? Math.max(...values) : 1;
-  const range = Math.max(max - min, 1);
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const xFor = (index: number) => padding.left + (index + 0.5) * (plotWidth / Math.max(candles.length, 1));
-  const yFor = (price: number) => padding.top + ((max - price) / range) * plotHeight;
-  const candleWidth = Math.max(5, Math.min(16, (plotWidth / Math.max(candles.length, 1)) * 0.58));
-  const gridLines = Array.from({ length: 5 }, (_, index) => {
-    const y = padding.top + (index / 4) * plotHeight;
-    const price = max - (index / 4) * range;
-    return { y, price };
-  });
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="NIFTY candlestick chart" className="h-full w-full">
-      <rect x="0" y="0" width={width} height={height} rx="16" fill="#030712" />
-      {gridLines.map((line) => (
-        <g key={line.y}>
-          <line x1={padding.left} x2={width - padding.right} y1={line.y} y2={line.y} stroke="#1f2937" strokeDasharray="4 5" />
-          <text x={padding.left - 8} y={line.y + 4} textAnchor="end" fill="#6b7280" fontSize="11">
-            {line.price.toFixed(0)}
-          </text>
-        </g>
-      ))}
-      <line x1={padding.left} x2={padding.left} y1={padding.top} y2={height - padding.bottom} stroke="#374151" />
-      <line x1={padding.left} x2={width - padding.right} y1={height - padding.bottom} y2={height - padding.bottom} stroke="#374151" />
-      {candles.map((candle, index) => {
-        const bullish = candle.close >= candle.open;
-        const color = bullish ? '#34d399' : '#f87171';
-        const x = xFor(index);
-        const openY = yFor(candle.open);
-        const closeY = yFor(candle.close);
-        const bodyTop = Math.min(openY, closeY);
-        const bodyHeight = Math.max(Math.abs(closeY - openY), 2);
-
-        return (
-          <g key={candle.tick}>
-            <line x1={x} x2={x} y1={yFor(candle.high)} y2={yFor(candle.low)} stroke={color} strokeWidth="2" strokeLinecap="round" />
-            <rect
-              x={x - candleWidth / 2}
-              y={bodyTop}
-              width={candleWidth}
-              height={bodyHeight}
-              rx="2"
-              fill={bullish ? '#064e3b' : '#7f1d1d'}
-              stroke={color}
-              strokeWidth="1.5"
-            />
-          </g>
-        );
-      })}
-      <text x={padding.left} y={height - 6} fill="#6b7280" fontSize="11">Older</text>
-      <text x={width - padding.right} y={height - 6} textAnchor="end" fill="#6b7280" fontSize="11">Latest</text>
-    </svg>
-  );
-}
-
 export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) {
   const seedSpot = Number(niftyData.quote?.regularMarketPrice ?? 22000);
   const seedVix = Number(vixData.quote?.regularMarketPrice ?? 15);
@@ -200,10 +143,9 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   const [secondsLeft, setSecondsLeft] = useState(EXPIRY_SECONDS);
   const [, setTick] = useState(0);
   const [cash, setCash] = useState(INITIAL_CASH);
-  const [orderQuantity, setOrderQuantity] = useState(1);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<ClosedTrade[]>([]);
-  const [candles, setCandles] = useState<CandlePoint[]>([{ tick: 0, open: seedSpot, high: seedSpot, low: seedSpot, close: seedSpot }]);
+  const [chartData, setChartData] = useState<ChartPoint[]>([{ tick: 0, price: seedSpot }]);
 
   const yearsToExpiry = Math.max(secondsLeft / EXPIRY_SECONDS, 0) * GAME_WEEK_IN_YEARS;
   const volatility = vix / 100;
@@ -266,12 +208,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
         const nextSpot = Math.max(1000, currentSpot * Math.exp(drift + volatility * shock));
         setTick((currentTick) => {
           const nextTick = currentTick + 1;
-          setCandles((data) => {
-            const wickPadding = Math.max(currentSpot * volatility * 0.0006, 3);
-            const high = Math.max(currentSpot, nextSpot) + Math.random() * wickPadding;
-            const low = Math.min(currentSpot, nextSpot) - Math.random() * wickPadding;
-            return [...data, { tick: nextTick, open: currentSpot, high, low, close: nextSpot }].slice(-MAX_HISTORY_POINTS);
-          });
+          setChartData((data) => [...data, { tick: nextTick, price: nextSpot }].slice(-MAX_HISTORY_POINTS));
           return nextTick;
         });
         return nextSpot;
@@ -289,7 +226,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   const placeTrade = (strike: number, side: OptionSide, action: TradeAction) => {
     if (secondsLeft === 0) return;
     const entryPrice = getOptionPrice(strike, side);
-    const quantity = Math.max(1, Math.floor(orderQuantity));
+    const quantity = 1;
     const premium = entryPrice * quantity * LOT_SIZE;
     const reserve = action === 'SELL' ? strike * quantity * LOT_SIZE * 0.08 : 0;
     const requiredCash = action === 'BUY' ? premium : reserve;
@@ -311,7 +248,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
     setCash(INITIAL_CASH);
     setPositions([]);
     setHistory([]);
-    setCandles([{ tick: 0, open: seedSpot, high: seedSpot, low: seedSpot, close: seedSpot }]);
+    setChartData([{ tick: 0, price: seedSpot }]);
   };
 
   return (
@@ -354,7 +291,20 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             </div>
           </div>
           <div className="h-72 rounded-xl bg-gray-950/80 p-3">
-            <CandlestickChart candles={candles} />
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 16, right: 20, bottom: 10, left: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis dataKey="tick" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" tickFormatter={(value: number) => value.toFixed(0)} />
+                <Tooltip
+                  contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 12 }}
+                  labelStyle={{ color: '#d1d5db' }}
+                  formatter={(value: number) => [value.toFixed(2), 'NIFTY']}
+                  labelFormatter={(label: string) => `Tick ${label}`}
+                />
+                <Line dataKey="price" stroke="#60a5fa" strokeWidth={3} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
@@ -373,37 +323,10 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             onChange={(event) => setVix(Number(event.target.value))}
             className="mt-6 w-full accent-red-400"
           />
-          <label className="mt-6 block text-sm font-bold text-gray-300" htmlFor="order-quantity">Order quantity (lots)</label>
-          <div className="mt-2 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setOrderQuantity((value) => Math.max(1, value - 1))}
-              className="rounded-lg bg-gray-800 px-3 py-2 font-black text-gray-100 hover:bg-gray-700"
-            >
-              −
-            </button>
-            <input
-              id="order-quantity"
-              type="number"
-              min="1"
-              max="50"
-              value={orderQuantity}
-              onChange={(event) => setOrderQuantity(Math.max(1, Math.min(50, Number(event.target.value) || 1)))}
-              className="w-28 rounded-lg border border-gray-700 bg-gray-950 px-3 py-2 text-center text-lg font-black text-white outline-none focus:border-blue-400"
-            />
-            <button
-              type="button"
-              onClick={() => setOrderQuantity((value) => Math.min(50, value + 1))}
-              className="rounded-lg bg-gray-800 px-3 py-2 font-black text-gray-100 hover:bg-gray-700"
-            >
-              +
-            </button>
-            <span className="text-sm text-gray-500">{orderQuantity * LOT_SIZE} NIFTY units</span>
-          </div>
           <div className="mt-6 rounded-xl bg-gray-950 p-4 text-sm text-gray-300">
             <p className="font-bold text-white">Game mechanics</p>
             <p className="mt-2">Spot follows a random GBM-style walk every {TICK_SECONDS}s. Option values decay toward intrinsic value as expiry approaches.</p>
-            <p className="mt-2">Each Buy/Sell click trades the selected quantity. Every lot is {LOT_SIZE} NIFTY units, and short options reserve 8% notional margin.</p>
+            <p className="mt-2">Each click trades 1 NIFTY lot ({LOT_SIZE} units). Short options reserve 8% notional margin.</p>
           </div>
         </div>
       </section>
