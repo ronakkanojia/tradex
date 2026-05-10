@@ -4,8 +4,8 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface MarketData {
   ticker: string;
-  quote: any;
-  chart: any[] | null;
+  quote: { regularMarketPrice?: number };
+  chart: Array<Record<string, unknown>> | null;
 }
 
 const MOCK_DATA = {
