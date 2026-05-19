@@ -50,16 +50,13 @@ type ClosedTrade = Position & {
 };
 
 type ChartPoint = {
-  tick: number;
+  time: string;
   price: number;
 };
 
 const INITIAL_CASH = 100000;
 const LOT_SIZE = 50;
 const RISK_FREE_RATE = 0.065;
-const EXPIRY_SECONDS = 60;
-const TICK_SECONDS = 2;
-const GAME_WEEK_IN_YEARS = 7 / 365;
 const MAX_HISTORY_POINTS = 40;
 
 function normalPdf(x: number) {
@@ -135,19 +132,45 @@ function formatSignedCurrency(value: number) {
   return `${sign}${formatCurrency(Math.abs(value))}`;
 }
 
+function getNextExpiryDate(): Date {
+  const now = new Date();
+  const nextThursday = new Date(now);
+
+  // Calculate days to next Thursday (4)
+  const day = nextThursday.getUTCDay();
+  const daysToThursday = (4 - day + 7) % 7;
+
+  nextThursday.setUTCDate(nextThursday.getUTCDate() + daysToThursday);
+  // Set to 10:00 AM UTC (3:30 PM IST)
+  nextThursday.setUTCHours(10, 0, 0, 0);
+
+  // If today is Thursday but it's past 10:00 AM UTC, get NEXT Thursday
+  if (daysToThursday === 0 && now.getTime() > nextThursday.getTime()) {
+    nextThursday.setUTCDate(nextThursday.getUTCDate() + 7);
+  }
+
+  return nextThursday;
+}
+
 export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) {
   const seedSpot = Number(niftyData.quote?.regularMarketPrice ?? 22000);
   const seedVix = Number(vixData.quote?.regularMarketPrice ?? 15);
   const [spot, setSpot] = useState(seedSpot);
   const [vix, setVix] = useState(seedVix);
-  const [secondsLeft, setSecondsLeft] = useState(EXPIRY_SECONDS);
+
+  // Real time logic
+  const [now, setNow] = useState(new Date());
+
   const [, setTick] = useState(0);
   const [cash, setCash] = useState(INITIAL_CASH);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<ClosedTrade[]>([]);
-  const [chartData, setChartData] = useState<ChartPoint[]>([{ tick: 0, price: seedSpot }]);
+  const [chartData, setChartData] = useState<ChartPoint[]>([{ time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: seedSpot }]);
 
-  const yearsToExpiry = Math.max(secondsLeft / EXPIRY_SECONDS, 0) * GAME_WEEK_IN_YEARS;
+  const expiryDate = useMemo(() => getNextExpiryDate(), []);
+  const millisecondsLeft = Math.max(expiryDate.getTime() - now.getTime(), 0);
+  const secondsLeft = Math.floor(millisecondsLeft / 1000);
+  const yearsToExpiry = millisecondsLeft / (1000 * 60 * 60 * 24 * 365);
   const volatility = vix / 100;
 
   const getOptionPrice = useCallback(
@@ -194,28 +217,31 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setSecondsLeft((value) => Math.max(value - 1, 0));
+      setNow(new Date());
     }, 1000);
     return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const interval = window.setInterval(() => {
-      setSpot((currentSpot) => {
-        const dt = TICK_SECONDS / EXPIRY_SECONDS / 52;
-        const shock = Math.sqrt(dt) * (Math.random() * 2 - 1);
-        const drift = -0.5 * volatility ** 2 * dt;
-        const nextSpot = Math.max(1000, currentSpot * Math.exp(drift + volatility * shock));
-        setTick((currentTick) => {
-          const nextTick = currentTick + 1;
-          setChartData((data) => [...data, { tick: nextTick, price: nextSpot }].slice(-MAX_HISTORY_POINTS));
-          return nextTick;
-        });
-        return nextSpot;
+    if (niftyData.quote?.regularMarketPrice) {
+      const newSpot = niftyData.quote.regularMarketPrice;
+      setSpot(newSpot);
+      setChartData((data) => {
+        const newData = [...data, { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: newSpot }].slice(-MAX_HISTORY_POINTS);
+        // Avoid duplicate consecutive entries if the price hasn't changed and it's fetched frequently
+        if (data.length > 0 && data[data.length - 1].price === newSpot) {
+          return data;
+        }
+        return newData;
       });
-    }, TICK_SECONDS * 1000);
-    return () => window.clearInterval(interval);
-  }, [volatility]);
+    }
+  }, [niftyData]);
+
+  useEffect(() => {
+    if (vixData.quote?.regularMarketPrice) {
+      setVix(vixData.quote.regularMarketPrice);
+    }
+  }, [vixData]);
 
   useEffect(() => {
     if (secondsLeft === 0 && positions.length > 0) {
@@ -272,7 +298,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             <p className={`text-2xl font-black ${score >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{score.toFixed(2)}%</p>
           </div>
           <button onClick={resetGame} className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-4 py-3 font-bold text-blue-200 transition hover:bg-blue-500/20">
-            Reset Game
+            Reset Portfolio
           </button>
         </div>
       </section>
@@ -285,22 +311,27 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
               <p className="text-4xl font-black text-white">{spot.toFixed(2)}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-400">Expiry countdown</p>
-              <p className={`text-3xl font-black ${secondsLeft <= 10 ? 'text-red-400' : 'text-amber-300'}`}>{secondsLeft}s</p>
-              <p className="text-xs text-gray-500">60 seconds = 1 in-game week</p>
+              <p className="text-sm text-gray-400">Time to Expiry</p>
+              <p className={`text-3xl font-black ${secondsLeft <= 600 ? 'text-red-400' : 'text-amber-300'}`}>
+                {Math.floor(millisecondsLeft / (1000 * 60 * 60 * 24))}d :{' '}
+                {Math.floor((millisecondsLeft / (1000 * 60 * 60)) % 24)}h :{' '}
+                {Math.floor((millisecondsLeft / 1000 / 60) % 60)}m :{' '}
+                {Math.floor((millisecondsLeft / 1000) % 60)}s
+              </p>
+              <p className="text-xs text-gray-500">{expiryDate.toLocaleString()}</p>
             </div>
           </div>
           <div className="h-72 rounded-xl bg-gray-950/80 p-3">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 16, right: 20, bottom: 10, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="tick" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" tickFormatter={(value: number) => value.toFixed(0)} />
+                <XAxis dataKey="time" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                <YAxis domain={['auto', 'auto']} stroke="#6b7280" tickFormatter={(value: number) => value.toFixed(0)} />
                 <Tooltip
                   contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 12 }}
                   labelStyle={{ color: '#d1d5db' }}
                   formatter={(value: number) => [value.toFixed(2), 'NIFTY']}
-                  labelFormatter={(label: string) => `Tick ${label}`}
+                  labelFormatter={(label: string) => `Time: ${label}`}
                 />
                 <Line dataKey="price" stroke="#60a5fa" strokeWidth={3} dot={false} />
               </LineChart>
@@ -309,23 +340,13 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
         </div>
 
         <div className="rounded-2xl border border-gray-800 bg-gray-900 p-5 shadow-xl">
-          <p className="text-sm uppercase tracking-widest text-gray-500">Implied Volatility</p>
+          <p className="text-sm uppercase tracking-widest text-gray-500">Implied Volatility (INDIA VIX)</p>
           <div className="mt-2 flex items-center justify-between">
             <p className="text-4xl font-black text-red-300">{vix.toFixed(1)}%</p>
-            <span className="rounded-full bg-gray-800 px-3 py-1 text-xs text-gray-300">VIX slider</span>
           </div>
-          <input
-            type="range"
-            min="5"
-            max="45"
-            step="0.5"
-            value={vix}
-            onChange={(event) => setVix(Number(event.target.value))}
-            className="mt-6 w-full accent-red-400"
-          />
           <div className="mt-6 rounded-xl bg-gray-950 p-4 text-sm text-gray-300">
-            <p className="font-bold text-white">Game mechanics</p>
-            <p className="mt-2">Spot follows a random GBM-style walk every {TICK_SECONDS}s. Option values decay toward intrinsic value as expiry approaches.</p>
+            <p className="font-bold text-white">Real-Time Tracker</p>
+            <p className="mt-2">Spot and VIX are synchronized with live market data. Option values decay dynamically based on real time left until standard expiry.</p>
             <p className="mt-2">Each click trades 1 NIFTY lot ({LOT_SIZE} units). Short options reserve 8% notional margin.</p>
           </div>
         </div>
