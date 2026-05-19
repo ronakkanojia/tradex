@@ -58,7 +58,6 @@ const INITIAL_CASH = 100000;
 const LOT_SIZE = 50;
 const RISK_FREE_RATE = 0.065;
 const MAX_HISTORY_POINTS = 40;
-const EXPIRY_SECONDS = 86400; // 24 hours in seconds
 
 function normalPdf(x: number) {
   return (1 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
@@ -158,7 +157,6 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   const seedVix = Number(vixData.quote?.regularMarketPrice ?? 15);
   const [spot, setSpot] = useState(seedSpot);
   const [vix, setVix] = useState(seedVix);
-  const [secondsLeft, setSecondsLeft] = useState(EXPIRY_SECONDS);
 
   // Real time logic
   const [now, setNow] = useState(new Date());
@@ -171,7 +169,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
 
   const expiryDate = useMemo(() => getNextExpiryDate(), []);
   const millisecondsLeft = Math.max(expiryDate.getTime() - now.getTime(), 0);
-  const secondsLeftCalculated = Math.floor(millisecondsLeft / 1000);
+  const secondsLeft = Math.floor(millisecondsLeft / 1000);
   const yearsToExpiry = millisecondsLeft / (1000 * 60 * 60 * 24 * 365);
   const volatility = vix / 100;
 
@@ -246,13 +244,13 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   }, [vixData]);
 
   useEffect(() => {
-    if (secondsLeftCalculated === 0 && positions.length > 0) {
+    if (secondsLeft === 0 && positions.length > 0) {
       positions.forEach((position) => closePosition(position.id, 'Expired'));
     }
-  }, [secondsLeftCalculated, positions, closePosition]);
+  }, [secondsLeft, positions, closePosition]);
 
   const placeTrade = (strike: number, side: OptionSide, action: TradeAction) => {
-    if (secondsLeftCalculated === 0) return;
+    if (secondsLeft === 0) return;
     const entryPrice = getOptionPrice(strike, side);
     const quantity = 1;
     const premium = entryPrice * quantity * LOT_SIZE;
@@ -271,7 +269,6 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   const resetGame = () => {
     setSpot(seedSpot);
     setVix(seedVix);
-    setSecondsLeft(EXPIRY_SECONDS);
     setTick(0);
     setCash(INITIAL_CASH);
     setPositions([]);
@@ -314,7 +311,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-400">Time to Expiry</p>
-              <p className={`text-3xl font-black ${secondsLeftCalculated <= 600 ? 'text-red-400' : 'text-amber-300'}`}>
+              <p className={`text-3xl font-black ${secondsLeft <= 600 ? 'text-red-400' : 'text-amber-300'}`}>
                 {Math.floor(millisecondsLeft / (1000 * 60 * 60 * 24))}d :{' '}
                 {Math.floor((millisecondsLeft / (1000 * 60 * 60)) % 24)}h :{' '}
                 {Math.floor((millisecondsLeft / 1000 / 60) % 60)}m :{' '}
