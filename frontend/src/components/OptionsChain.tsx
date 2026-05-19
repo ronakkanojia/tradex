@@ -324,7 +324,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 16, right: 20, bottom: 10, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="time" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="time" stroke="#6b7280" />
                 <YAxis domain={['auto', 'auto']} stroke="#6b7280" tickFormatter={(value: number) => value.toFixed(0)} />
                 <Tooltip
                   contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 12 }}
