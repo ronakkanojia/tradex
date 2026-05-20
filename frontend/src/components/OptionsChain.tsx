@@ -35,6 +35,21 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
 
   const volatility = currentVix / 100.0;
 
+  const optionsData = useMemo(() => {
+    return strikes.map((strike) => {
+      const { call, put } = blackScholes(currentNiftyPrice, strike, TIME_TO_EXPIRY, volatility, RISK_FREE_RATE);
+      const isCallITM = currentNiftyPrice > strike;
+      const isPutITM = currentNiftyPrice < strike;
+      return {
+        strike,
+        call,
+        put,
+        isCallITM,
+        isPutITM,
+      };
+    });
+  }, [strikes, currentNiftyPrice, volatility, TIME_TO_EXPIRY, RISK_FREE_RATE]);
+
   return (
     <div className="w-full max-w-6xl mx-auto mt-8 bg-gray-900 rounded-xl shadow-2xl overflow-hidden text-gray-200">
       <div className="px-6 py-4 border-b border-gray-800 flex justify-between items-center bg-gray-800">
@@ -76,11 +91,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             </tr>
           </thead>
           <tbody>
-            {strikes.map((strike) => {
-              const { call, put } = blackScholes(currentNiftyPrice, strike, TIME_TO_EXPIRY, volatility, RISK_FREE_RATE);
-              const isCallITM = currentNiftyPrice > strike;
-              const isPutITM = currentNiftyPrice < strike;
-
+            {optionsData.map(({ strike, call, put, isCallITM, isPutITM }) => {
               return (
                 <tr key={strike} className={`border-b border-gray-800 hover:bg-gray-700 transition-colors`}>
                   {/* CALLS */}
