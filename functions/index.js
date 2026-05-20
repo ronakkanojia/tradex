@@ -30,6 +30,7 @@ exports.getMarketData = onRequest(async (req, res) => {
          }
       }
 
+      res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
       res.status(200).json({
           ticker,
           quote,
