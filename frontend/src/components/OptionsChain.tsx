@@ -276,6 +276,21 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
     setChartData([{ time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: seedSpot }]);
   };
 
+  const optionsData = useMemo(() => {
+    return strikes.map((strike) => {
+      const { call, put } = blackScholes(currentNiftyPrice, strike, TIME_TO_EXPIRY, volatility, RISK_FREE_RATE);
+      const isCallITM = currentNiftyPrice > strike;
+      const isPutITM = currentNiftyPrice < strike;
+      return {
+        strike,
+        call,
+        put,
+        isCallITM,
+        isPutITM,
+      };
+    });
+  }, [strikes, currentNiftyPrice, volatility, TIME_TO_EXPIRY, RISK_FREE_RATE]);
+
   return (
     <div className="space-y-6 text-gray-100">
       <section className="rounded-2xl border border-gray-800 bg-gray-900/90 p-5 shadow-2xl">
@@ -436,6 +451,68 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm text-center">
+          <thead className="text-xs uppercase bg-gray-800 text-gray-400">
+            <tr>
+              <th colSpan={6} className="px-4 py-3 border-r border-gray-700">CALLS</th>
+              <th className="px-4 py-3 border-r border-gray-700 bg-gray-700 text-white">STRIKE</th>
+              <th colSpan={6} className="px-4 py-3">PUTS</th>
+            </tr>
+            <tr className="border-b border-gray-700 bg-gray-800">
+              <th className="px-2 py-2">Delta</th>
+              <th className="px-2 py-2">Gamma</th>
+              <th className="px-2 py-2">Theta</th>
+              <th className="px-2 py-2">Vega</th>
+              <th className="px-2 py-2">Rho</th>
+              <th className="px-4 py-2 border-r border-gray-700 text-blue-400 font-bold">Theo Price</th>
+
+              <th className="px-4 py-2 border-r border-gray-700 bg-gray-700"></th>
+
+              <th className="px-4 py-2 text-red-400 font-bold">Theo Price</th>
+              <th className="px-2 py-2">Delta</th>
+              <th className="px-2 py-2">Gamma</th>
+              <th className="px-2 py-2">Theta</th>
+              <th className="px-2 py-2">Vega</th>
+              <th className="px-2 py-2">Rho</th>
+            </tr>
+          </thead>
+          <tbody>
+            {optionsData.map(({ strike, call, put, isCallITM, isPutITM }) => {
+              return (
+                <tr key={strike} className={`border-b border-gray-800 hover:bg-gray-700 transition-colors`}>
+                  {/* CALLS */}
+                  <td className={`px-2 py-2 ${isCallITM ? 'bg-blue-900/20' : ''}`}>{call.delta.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isCallITM ? 'bg-blue-900/20' : ''}`}>{call.gamma.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isCallITM ? 'bg-blue-900/20' : ''}`}>{call.theta.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isCallITM ? 'bg-blue-900/20' : ''}`}>{call.vega.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isCallITM ? 'bg-blue-900/20' : ''}`}>{call.rho.toFixed(4)}</td>
+                  <td className={`px-4 py-2 border-r border-gray-700 font-bold text-blue-400 ${isCallITM ? 'bg-blue-900/30' : ''}`}>
+                    {call.price.toFixed(2)}
+                  </td>
+
+                  {/* STRIKE */}
+                  <td className="px-4 py-2 border-r border-gray-700 bg-gray-800 font-bold text-white">
+                    {strike}
+                  </td>
+
+                  {/* PUTS */}
+                  <td className={`px-4 py-2 font-bold text-red-400 ${isPutITM ? 'bg-red-900/30' : ''}`}>
+                    {put.price.toFixed(2)}
+                  </td>
+                  <td className={`px-2 py-2 ${isPutITM ? 'bg-red-900/20' : ''}`}>{put.delta.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isPutITM ? 'bg-red-900/20' : ''}`}>{put.gamma.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isPutITM ? 'bg-red-900/20' : ''}`}>{put.theta.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isPutITM ? 'bg-red-900/20' : ''}`}>{put.vega.toFixed(4)}</td>
+                  <td className={`px-2 py-2 ${isPutITM ? 'bg-red-900/20' : ''}`}>{put.rho.toFixed(4)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       </section>
     </div>
   );
