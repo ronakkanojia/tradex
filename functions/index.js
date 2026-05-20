@@ -26,10 +26,11 @@ exports.getMarketData = onRequest(async (req, res) => {
          logger.warn(`Could not fetch chart for ${ticker}: ${chartErr.message}`);
          // If "Too Many Requests" or invalid JSON, capture it
          if (chartErr.message && chartErr.message.includes("invalid json") && chartErr.message.includes("Too Many Requests")) {
-            return res.status(429).json({ error: "Rate limit exceeded (Too Many Requests from Yahoo Finance)" });
+            return res.status(429).json({ error: "Rate limit exceeded" });
          }
       }
 
+      res.set('Cache-Control', 'public, max-age=60, s-maxage=60');
       res.status(200).json({
           ticker,
           quote,
@@ -39,9 +40,9 @@ exports.getMarketData = onRequest(async (req, res) => {
     } catch (error) {
       logger.error(`Error fetching data for ${ticker}:`, error);
       if (error.message && error.message.includes("invalid json") && error.message.includes("Too Many Requests")) {
-         return res.status(429).json({ error: "Rate limit exceeded (Too Many Requests from Yahoo Finance)" });
+         return res.status(429).json({ error: "Rate limit exceeded" });
       }
-      res.status(500).json({ error: "Failed to fetch market data", details: error.message });
+      res.status(500).json({ error: "Failed to fetch market data" });
     }
   });
 });

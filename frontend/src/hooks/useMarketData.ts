@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 
-// Assuming Cloud Function running locally at first, or fallback.
-// In production, this would be the deployed Firebase Function URL.
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5001/';
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface MarketData {
   ticker: string;
-  quote: any;
-  chart: any[] | null;
+  quote: { regularMarketPrice?: number };
+  chart: Array<Record<string, unknown>> | null;
 }
+
+const MOCK_DATA = {
+  nifty: { ticker: '^NSEI', quote: { regularMarketPrice: 22000 }, chart: null },
+  vix: { ticker: '^INDIAVIX', quote: { regularMarketPrice: 15 }, chart: null },
+};
 
 export function useMarketData() {
   const [niftyData, setNiftyData] = useState<MarketData | null>(null);
@@ -21,6 +24,13 @@ export function useMarketData() {
       setLoading(true);
       setError(null);
 
+      if (!API_URL) {
+        setNiftyData(MOCK_DATA.nifty);
+        setVixData(MOCK_DATA.vix);
+        setLoading(false);
+        return;
+      }
+
       try {
         const [niftyRes, vixRes] = await Promise.all([
           fetch(`${API_URL}?ticker=%5ENSEI&interval=1m`),
@@ -28,18 +38,9 @@ export function useMarketData() {
         ]);
 
         if (niftyRes.status === 429 || vixRes.status === 429) {
-            // Mock data because yahoo-finance2 is rate limited
-            setNiftyData({
-                ticker: '^NSEI',
-                quote: { regularMarketPrice: 22000 },
-                chart: null
-            });
-            setVixData({
-                ticker: '^INDIAVIX',
-                quote: { regularMarketPrice: 15 },
-                chart: null
-            });
-            return;
+          setNiftyData(MOCK_DATA.nifty);
+          setVixData(MOCK_DATA.vix);
+          return;
         }
 
         if (!niftyRes.ok) throw new Error(`Nifty fetch failed: ${niftyRes.status}`);
@@ -59,8 +60,6 @@ export function useMarketData() {
     }
 
     fetchData();
-
-    // Auto refresh every 1 minute
     const intervalId = setInterval(fetchData, 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);
