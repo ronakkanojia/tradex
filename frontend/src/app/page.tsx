@@ -11,9 +11,9 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <header className="mb-10 text-center">
           <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight mb-2">
-            Tradex Market Data
+            Nifty Options Trading Simulator
           </h1>
-          <p className="text-gray-400">Serverless Option Pricing & Simulation Engine</p>
+          <p className="text-gray-400">Trade weekly NIFTY options with live Black-Scholes pricing</p>
         </header>
 
         {loading && !niftyData && (

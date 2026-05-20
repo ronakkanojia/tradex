@@ -4,6 +4,8 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Tradex Market Data",
   description: "Serverless Option Pricing & Simulation Engine",
+  title: "Nifty Options Trading Simulator",
+  description: "A virtual NIFTY options simulator with Black-Scholes pricing.",
 };
 
 export default function RootLayout({

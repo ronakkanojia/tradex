@@ -1,24 +1,16 @@
 import { useState, useEffect } from 'react';
 
-// In production, this should be the deployed Firebase Function URL.
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export interface MarketData {
   ticker: string;
-  quote: any;
-  chart: any[] | null;
+  quote: { regularMarketPrice?: number };
+  chart: Array<Record<string, unknown>> | null;
 }
 
-const MOCK_NIFTY_DATA: MarketData = {
-  ticker: '^NSEI',
-  quote: { regularMarketPrice: 22000 },
-  chart: null,
-};
-
-const MOCK_VIX_DATA: MarketData = {
-  ticker: '^INDIAVIX',
-  quote: { regularMarketPrice: 15 },
-  chart: null,
+const MOCK_DATA = {
+  nifty: { ticker: '^NSEI', quote: { regularMarketPrice: 22000 }, chart: null },
+  vix: { ticker: '^INDIAVIX', quote: { regularMarketPrice: 15 }, chart: null },
 };
 
 export function useMarketData() {
@@ -32,21 +24,23 @@ export function useMarketData() {
       setLoading(true);
       setError(null);
 
-      try {
-        if (!API_URL) {
-          throw new Error('NEXT_PUBLIC_API_URL is not configured');
-        }
+      if (!API_URL) {
+        setNiftyData(MOCK_DATA.nifty);
+        setVixData(MOCK_DATA.vix);
+        setLoading(false);
+        return;
+      }
 
+      try {
         const [niftyRes, vixRes] = await Promise.all([
           fetch(`${API_URL}?ticker=%5ENSEI&interval=1m`),
           fetch(`${API_URL}?ticker=%5EINDIAVIX&interval=1m`)
         ]);
 
         if (niftyRes.status === 429 || vixRes.status === 429) {
-            // Mock data because yahoo-finance2 is rate limited
-            setNiftyData(MOCK_NIFTY_DATA);
-            setVixData(MOCK_VIX_DATA);
-            return;
+          setNiftyData(MOCK_DATA.nifty);
+          setVixData(MOCK_DATA.vix);
+          return;
         }
 
         if (!niftyRes.ok) throw new Error(`Nifty fetch failed: ${niftyRes.status}`);
@@ -59,17 +53,13 @@ export function useMarketData() {
         setVixData(vix);
       } catch (err: unknown) {
         console.error("Error fetching market data:", err);
-        // Fall back to mock data so the UI can still render when API is unreachable.
-        setNiftyData(MOCK_NIFTY_DATA);
-        setVixData(MOCK_VIX_DATA);
+        setError(err instanceof Error ? err.message : "Failed to fetch market data");
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-
-    // Auto refresh every 1 minute
     const intervalId = setInterval(fetchData, 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);

@@ -1,33 +1,42 @@
+// Constants for Standard Normal Cumulative Distribution Function (CND)
+const CND_A1 = 0.31938153;
+const CND_A2 = -0.356563782;
+const CND_A3 = 1.781477937;
+const CND_A4 = -1.821255978;
+const CND_A5 = 1.330274429;
+const CND_P = 0.2316419;
+
+// 1 / sqrt(2 * PI)
+const INV_SQRT_2PI = 0.3989422804014327;
+
 /**
  * Standard Normal Cumulative Distribution Function
  */
 function CND(x) {
-  const a1 = 0.31938153;
-  const a2 = -0.356563782;
-  const a3 = 1.781477937;
-  const a4 = -1.821255978;
-  const a5 = 1.330274429;
-  const p = 0.2316419;
-  const c = 0.39894228;
+  const l = Math.abs(x);
+  const k = 1.0 / (1.0 + CND_P * l);
+  const k2 = k * k;
+  const k3 = k2 * k;
+  const k4 = k3 * k;
+  const k5 = k4 * k;
 
-  if (x >= 0.0) {
-    const l = Math.abs(x);
-    const k = 1.0 / (1.0 + p * l);
-    const w = 1.0 - c * Math.exp(-l * l / 2.0) * (a1 * k + a2 * k * k + a3 * Math.pow(k, 3) + a4 * Math.pow(k, 4) + a5 * Math.pow(k, 5));
-    return w;
-  } else {
-    const l = Math.abs(x);
-    const k = 1.0 / (1.0 + p * l);
-    const w = c * Math.exp(-l * l / 2.0) * (a1 * k + a2 * k * k + a3 * Math.pow(k, 3) + a4 * Math.pow(k, 4) + a5 * Math.pow(k, 5));
-    return w;
-  }
+  // Polynomial approximation
+  const poly = INV_SQRT_2PI * Math.exp(-l * l / 2.0) * (
+    CND_A1 * k +
+    CND_A2 * k2 +
+    CND_A3 * k3 +
+    CND_A4 * k4 +
+    CND_A5 * k5
+  );
+
+  return x >= 0.0 ? 1.0 - poly : poly;
 }
 
 /**
  * Standard Normal Probability Density Function
  */
 function ND(x) {
-  return (1.0 / Math.sqrt(2.0 * Math.PI)) * Math.exp(-0.5 * x * x);
+  return INV_SQRT_2PI * Math.exp(-0.5 * x * x);
 }
 
 /**
