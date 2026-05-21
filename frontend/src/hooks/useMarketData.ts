@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = '/api/market'; // Use local API route
 
 export interface MarketData {
   ticker: string;
   quote: { regularMarketPrice?: number };
-  chart: Array<Record<string, unknown>> | null;
+  chart: Array<{ timestamp?: number; date?: string; close?: number }> | null;
 }
 
 const MOCK_DATA = {
@@ -23,13 +23,6 @@ export function useMarketData() {
     async function fetchData() {
       setLoading(true);
       setError(null);
-
-      if (!API_URL) {
-        setNiftyData(MOCK_DATA.nifty);
-        setVixData(MOCK_DATA.vix);
-        setLoading(false);
-        return;
-      }
 
       try {
         const [niftyRes, vixRes] = await Promise.all([

@@ -163,6 +163,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
 
   const [, setTick] = useState(0);
   const [cash, setCash] = useState(INITIAL_CASH);
+  const [tradeQuantity, setTradeQuantity] = useState(15);
   const [positions, setPositions] = useState<Position[]>([]);
   const [history, setHistory] = useState<ClosedTrade[]>([]);
   const [chartData, setChartData] = useState<ChartPoint[]>([{ time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: seedSpot }]);
@@ -226,14 +227,32 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
     if (niftyData.quote?.regularMarketPrice) {
       const newSpot = niftyData.quote.regularMarketPrice;
       setSpot(newSpot);
-      setChartData((data) => {
-        const newData = [...data, { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: newSpot }].slice(-MAX_HISTORY_POINTS);
-        // Avoid duplicate consecutive entries if the price hasn't changed and it's fetched frequently
-        if (data.length > 0 && data[data.length - 1].price === newSpot) {
-          return data;
-        }
-        return newData;
-      });
+
+      if (niftyData.chart && niftyData.chart.length > 0) {
+        const historicalData = niftyData.chart.map(point => ({
+          time: new Date(point.date || point.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          price: point.close || newSpot
+        })).slice(-MAX_HISTORY_POINTS);
+
+        setChartData((data) => {
+          // If we already have live data points, just append the new spot
+          if (data.length > 1 && data[0].time !== historicalData[0].time) {
+            const newData = [...data, { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: newSpot }].slice(-MAX_HISTORY_POINTS);
+            if (data.length > 0 && data[data.length - 1].price === newSpot) return data;
+            return newData;
+          }
+          // Otherwise, initialize with historical data + current spot
+          return [...historicalData, { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: newSpot }].slice(-MAX_HISTORY_POINTS);
+        });
+      } else {
+        setChartData((data) => {
+          const newData = [...data, { time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: newSpot }].slice(-MAX_HISTORY_POINTS);
+          if (data.length > 0 && data[data.length - 1].price === newSpot) {
+            return data;
+          }
+          return newData;
+        });
+      }
     }
   }, [niftyData]);
 
@@ -252,7 +271,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   const placeTrade = (strike: number, side: OptionSide, action: TradeAction) => {
     if (secondsLeft === 0) return;
     const entryPrice = getOptionPrice(strike, side);
-    const quantity = 1;
+    const quantity = tradeQuantity;
     const premium = entryPrice * quantity * LOT_SIZE;
     const reserve = action === 'SELL' ? strike * quantity * LOT_SIZE * 0.08 : 0;
     const requiredCash = action === 'BUY' ? premium : reserve;
@@ -269,12 +288,11 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
   const resetGame = () => {
     setSpot(seedSpot);
     setVix(seedVix);
-    setSecondsLeft(EXPIRY_SECONDS);
     setTick(0);
     setCash(INITIAL_CASH);
     setPositions([]);
     setHistory([]);
-    setChartData([{ tick: 0, price: seedSpot }]);
+    setChartData([{ time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), price: seedSpot }]);
   };
 
   return (
@@ -325,7 +343,7 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 16, right: 20, bottom: 10, left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="time" stroke="#6b7280" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="time" stroke="#6b7280" />
                 <YAxis domain={['auto', 'auto']} stroke="#6b7280" tickFormatter={(value: number) => value.toFixed(0)} />
                 <Tooltip
                   contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 12 }}
@@ -353,8 +371,21 @@ export default function OptionsChain({ niftyData, vixData }: OptionsChainProps) 
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-gray-800 bg-gray-900 shadow-xl">
-        <div className="border-b border-gray-800 bg-gray-800/80 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between border-b border-gray-800 bg-gray-800/80 px-5 py-4">
           <h2 className="text-xl font-black tracking-wide text-white">NIFTY Options Chain</h2>
+          <div className="flex items-center gap-3">
+            <label htmlFor="trade-qty" className="text-sm font-bold text-gray-300">
+              Trade Lots (1 Lot = {LOT_SIZE} Units):
+            </label>
+            <input
+              id="trade-qty"
+              type="number"
+              min="1"
+              value={tradeQuantity}
+              onChange={(e) => setTradeQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-20 rounded border border-gray-600 bg-gray-900 px-2 py-1 text-center font-bold text-white outline-none focus:border-blue-500"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1100px] text-center text-sm">
